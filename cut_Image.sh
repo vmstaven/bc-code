@@ -4,6 +4,7 @@ img_in=$1
 num_of_pieces=$2
 width=$3
 height=$4
+name=$5
 dims_cut=$(echo "sqrt($num_of_pieces)" | bc)
 tile_width=$(($width/$dims_cut))
 tile_height=$(($height/$dims_cut))
@@ -23,7 +24,7 @@ do
     do 
         echo "x = $(($j*$tile_width))"
         echo "y = $(($i*$tile_height))"
-        gdal_translate -srcwin $(($j*$tile_width)) $(($i*$tile_height)) $tile_width $tile_height -of GTiff $img_in "slice_$i-$j.tif"
+        gdal_translate -srcwin $(($j*$tile_width)) $(($i*$tile_height)) $tile_width $tile_height -of GTiff $img_in "slice-$name-$i-$j.tif"
     done
 done
 

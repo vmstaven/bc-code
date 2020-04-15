@@ -28,7 +28,7 @@ syms verification_image_print; verification_image_print=1
 
 clc
 % SELECT WHICH DATASET TO LOAD
-dataset_number = 3
+dataset_number = 2
 
 switch dataset_number
     case 1
@@ -75,9 +75,27 @@ switch dataset_number
         %__________________________________________________________________________
         
     case 3
-        file_name='data3/3_big_big_norm_dsm.tif';
+        
+        % Slice 1
+        %file_name='data3/3_big_big_norm_dsm.tif';
+        %ortho_image = imread('data3/mosaic3.tif');
+        
+        % Slice 2
+        %file_name='data3/3_big_big_norm_dsm.tif';
+        %ortho_image = imread('data3/mosaic3.tif');
+        
+        % Slice 3
+        %file_name='data3/3_big_big_norm_dsm.tif';
+        %ortho_image = imread('data3/mosaic3.tif');
+        
+        % Slice 4
+        %file_name='data3/3_big_big_norm_dsm.tif';
+        %ortho_image = imread('data3/mosaic3.tif');
+        
+        
+        %file_name='data3/3_big_big_norm_dsm.tif';
+        %ortho_image = imread('data3/mosaic3.tif');
         %ortho_image = imread('20200305_scaled_ortho.tif'); % used for verification
-        ortho_image = imread('data3/mosaic3.tif');
         ortho_image_rgb = ortho_image(:,:,1:3);% takes the first three channels
         
         %__________________________________________________________________________
