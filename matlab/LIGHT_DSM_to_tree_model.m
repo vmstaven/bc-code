@@ -28,7 +28,8 @@ syms verification_image_print; verification_image_print=1
 
 clc
 % SELECT WHICH DATASET TO LOAD
-dataset_number = 2
+dataset_number  = 1
+part_of_3       = 4
 
 switch dataset_number
     case 1
@@ -75,23 +76,22 @@ switch dataset_number
         %__________________________________________________________________________
         
     case 3
-        
-        % Slice 1
-        %file_name='data3/3_big_big_norm_dsm.tif';
-        %ortho_image = imread('data3/mosaic3.tif');
-        
-        % Slice 2
-        %file_name='data3/3_big_big_norm_dsm.tif';
-        %ortho_image = imread('data3/mosaic3.tif');
-        
-        % Slice 3
-        %file_name='data3/3_big_big_norm_dsm.tif';
-        %ortho_image = imread('data3/mosaic3.tif');
-        
-        % Slice 4
-        %file_name='data3/3_big_big_norm_dsm.tif';
-        %ortho_image = imread('data3/mosaic3.tif');
-        
+        switch part_of_3
+            case 1
+                file_name='data3/slice-dsm-0-0.tif';
+                ortho_image = imread('data3/slice-ortho-0-0.tif');
+            case 2
+                file_name='data3/slice-dsm-0-1.tif';
+                ortho_image = imread('data3/slice-ortho-0-1.tif');
+            case 3
+                file_name='data3/slice-dsm-1-0.tif';
+                ortho_image = imread('data3/slice-ortho-1-0.tif');
+            case 4
+                file_name='data3/slice-dsm-1-1.tif';
+                ortho_image = imread('data3/slice-ortho-1-1.tif');
+            otherwise
+                disp('wrong value  entered')
+        end
         
         %file_name='data3/3_big_big_norm_dsm.tif';
         %ortho_image = imread('data3/mosaic3.tif');

@@ -3,6 +3,14 @@
 # 2 inputs (directories) 
 #   
 
+ARGS=("$@")
+# Get the last argument
+dir_fuse=${ARGS[-1]}
+# Drop it from the array
+unset ARGS[${#ARGS[@]}-1]
+
+exec gs ... -sOUTPUTFILE=$outputfile "${ARGS[@]}"
+
 dir_start=$(pwd)
 dir_1=$1
 dir_2=$2
