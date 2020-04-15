@@ -1,0 +1,21 @@
+
+modelname: VGG_test1
+batch_size: 2
+image_height: 
+image_width: 
+
+data:
+    - train_path:
+    - validate_path:
+    - image_dir:
+    - checkpoint_path:
+
+model:
+    - learning_rate: 0.001 
+
+
+
+
+
+
+
