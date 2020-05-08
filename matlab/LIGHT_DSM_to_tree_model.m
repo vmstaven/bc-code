@@ -29,7 +29,12 @@ syms verification_image_print; verification_image_print=1
 clc
 % SELECT WHICH DATASET TO LOAD
 dataset_number  = 1
-part_of_3       = 4
+part_of_3       = 0
+
+th_1 = 18; opn_1 = 9;
+th_2 = 18; opn_2 = 9;
+th_3 = 24; opn_3 = 12;
+
 
 switch dataset_number
     case 1
@@ -48,9 +53,9 @@ switch dataset_number
 %         tophat_structure_element_size=15 
 %         opening_structure_element_size=7 
         
-        tophat_structure_element_size=12 
+        tophat_structure_element_size= th_1%12 
 
-        opening_structure_element_size=6  
+        opening_structure_element_size=opn_1%6  
         %__________________________________________________________________________
         
     case 2
@@ -70,9 +75,9 @@ switch dataset_number
 % 
 %         opening_structure_element_size=2 %2 
         
-        tophat_structure_element_size=16 %5 
+        tophat_structure_element_size=th_2 %5 
 
-        opening_structure_element_size=8 %2 
+        opening_structure_element_size=opn_2 %2 
         %__________________________________________________________________________
         
     case 3
@@ -90,7 +95,8 @@ switch dataset_number
                 file_name='data3/slice-dsm-1-1.tif';
                 ortho_image = imread('data3/slice-ortho-1-1.tif');
             otherwise
-                disp('wrong value  entered')
+                file_name='data3/3_not_so_big_norm_dsm_v2.tif';
+                ortho_image = imread('data3/3_not_so_big_ortho_v2.tif');
         end
         
         %file_name='data3/3_big_big_norm_dsm.tif';
@@ -100,9 +106,9 @@ switch dataset_number
         
         %__________________________________________________________________________
         %CHANGE THE FILTER VALUES HERE :
-        tophat_structure_element_size=12 %5 
+        tophat_structure_element_size=th_3 %5 
 
-        opening_structure_element_size=6 %2 
+        opening_structure_element_size=opn_3 %2 
         %__________________________________________________________________________
     otherwise
         disp('wrong value  entered')
@@ -240,16 +246,77 @@ elseif(dataset_number == 2)
     xy_coor = [x_coor y_coor];
     csvwrite('ds2_tops_big.csv',xy_coor);
 else
-    % comes from gdalinfo <img>
-    center_dsm=[168124.579999999987194,6193226.279000000096858];
-    center_ortho=[168132.776229660987156,6193222.189310640096664];
-    pixelsize=-0.007999999999966;
-    x_offset=vpa((center_dsm(1)-center_ortho(1))/pixelsize);
-    y_offset=vpa((center_dsm(2)-center_ortho(2))/pixelsize);
-    x_coor = x_coor - x_offset;
-    y_coor = y_coor - y_offset;
-    xy_coor = [x_coor y_coor];
-    csvwrite('ds3_tops_big.csv',xy_coor);
+
+    %pixel size taken from ortho
+    % try with collected image offset.
+%     center_dsm=[168124.579999999987194 6193226.279000000096858];
+%     center_ortho=[168132.776229660987156,6193222.189310640096664];
+%     pixelsize=-0.007999999999966;
+    
+% PLZ FIX
+
+    switch part_of_3
+        
+        case 0
+%             % dsm
+%             Origin = (168124.579999999987194,6193226.279000000096858)
+        %     Pixel Size = (0.014999597039476,-0.015000497203290)
+
+%             % ortho
+%             Origin = (168132.776199999992969,6193222.189299999736249)
+%             Pixel Size = (0.015000090702950,-0.014999184117424)
+            
+            center_dsm=[168215.778, 6193165.940];
+            center_ortho=[168215.464, 6193167.037];
+            pixelsize=0.015000090702950;
+            x_offset=vpa((center_dsm(1)-center_ortho(1))/pixelsize);
+            y_offset=vpa((center_dsm(2)-center_ortho(2))/pixelsize);
+            x_coor = x_coor - x_offset;
+            y_coor = y_coor - y_offset;
+            xy_coor = [x_coor y_coor];
+            csvwrite('ds3_tops_big.csv',xy_coor);
+        case 1
+            center_dsm=[168124.579999999987194 6193226.279000000096858];
+            center_ortho=[168132.776229660987156 6193222.189310640096664];
+            pixelsize=-0.007999999999966;
+            x_offset=vpa((center_dsm(1)-center_ortho(1))/pixelsize);
+            y_offset=vpa((center_dsm(2)-center_ortho(2))/pixelsize);
+            x_coor = x_coor - x_offset;
+            y_coor = y_coor - y_offset;
+            xy_coor = [x_coor y_coor];
+            csvwrite('ds3_tops_big_0-0.csv',xy_coor);
+        case 2
+            center_dsm=[168215.773549932026071 6193226.279000000096858];
+            center_ortho=[168215.464229660981800 6193222.189310640096664];
+            pixelsize=-0.007999999999966;
+            x_offset=vpa((center_dsm(1)-center_ortho(1))/pixelsize);
+            y_offset=vpa((center_dsm(2)-center_ortho(2))/pixelsize);
+            x_coor = x_coor - x_offset;
+            y_coor = y_coor - y_offset;
+            xy_coor = [x_coor y_coor];
+            csvwrite('ds3_tops_big_0-1.csv',xy_coor);
+        case 3
+            center_dsm=[168124.579999999987194 6193165.943499966524541];
+            center_ortho=[168132.776229660987156 6193167.037310640327632];
+            pixelsize=-0.007999999999966;
+            x_offset=vpa((center_dsm(1)-center_ortho(1))/pixelsize);
+            y_offset=vpa((center_dsm(2)-center_ortho(2))/pixelsize);
+            x_coor = x_coor - x_offset;
+            y_coor = y_coor - y_offset;
+            xy_coor = [x_coor y_coor];
+            csvwrite('ds3_tops_big_1-0.csv',xy_coor);
+        case 4
+            center_dsm=[168215.773549932026071 6193165.943499966524541];
+            center_ortho=[168215.464229660981800 6193167.037310640327632];
+            pixelsize=-0.007999999999966;
+            x_offset=vpa((center_dsm(1)-center_ortho(1))/pixelsize);
+            y_offset=vpa((center_dsm(2)-center_ortho(2))/pixelsize);
+            x_coor = x_coor - x_offset;
+            y_coor = y_coor - y_offset;
+            xy_coor = [x_coor y_coor];
+            csvwrite('ds3_tops_big_1-1.csv',xy_coor);
+    end
+    
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -290,9 +357,8 @@ disp('__________________________________________________________________________
 %% FUNCTIONS
 
 function f = get_min_max(A)
-min_max=[min(A(:)) max(A(:))];
-f=vpa(min_max);
-
+    min_max=[min(A(:)) max(A(:))];
+    f=vpa(min_max);
 end
 
 

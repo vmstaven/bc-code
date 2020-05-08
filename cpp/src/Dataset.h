@@ -6,7 +6,7 @@ class Dataset
 
         // Constructors.
         Dataset();
-        Dataset(cv::Mat &img, std::ifstream &csv_file,std::string name);
+        Dataset(cv::Mat &img, std::ifstream &csv_file, std::string name, double overlab = 0);
 
         // Destructors.
         ~Dataset();
@@ -32,6 +32,14 @@ class Dataset
         void                        fuseData();
         void                        clearData();
 
+        std::pair<cv::Mat,int>      markExtrema(cv::Mat &img);
+        cv::Mat                     predict();
+        cv::Mat                     predict(cv::Mat);
+        std::vector<cv::Mat>        predict(std::vector<cv::Mat> tiles);
+        cv::Mat                     stitchingTiles(cv::Mat big_img, std::vector<cv::Mat> tiles);
+
+        std::vector<cv::Mat>        generateTiles(cv::Mat &img, int tile_size = 256); // temp
+
     private:
         bool                        isDotted(cv::Mat &img, cv::viz::Color color);
         bool                        isRed(cv::Mat &img, cv::Point p);
@@ -44,7 +52,6 @@ class Dataset
         void                        placePoints(cv::Mat &img, std::vector<cv::Point> &pts, cv::viz::Color color);
         void                        printPoints(std::vector<cv::Point> points);
 
-        std::vector<cv::Mat>        generateTiles(cv::Mat &img, int tile_size = 350);
         std::vector<cv::Mat>        generateBetterTiles(cv::Mat &img, double overlab, int tile_size = 256);
 
         void                        tileDims();

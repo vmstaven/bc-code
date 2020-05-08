@@ -1,111 +1,53 @@
 #!/bin/bash
 
 # 2 inputs (directories) 
-#   
 
-ARGS=("$@")
-# Get the last argument
-dir_fuse=${ARGS[-1]}
-# Drop it from the array
-unset ARGS[${#ARGS[@]}-1]
+# CONSTANTS #########################################################################################################
 
-exec gs ... -sOUTPUTFILE=$outputfile "${ARGS[@]}"
+dirStart=$(pwd)                         # dir_start/
+IFS=', ' read -r -a array <<< "$@"      # array = {dir1/, dir2/, dir3/}
+length=$(($#-1))                        # array.length()
+dirDest="${!#}"                         # array.end()
 
-dir_start=$(pwd)
-dir_1=$1
-dir_2=$2
+echo "# DEBUG #########################################################################################################"
 
-cd "$dir_1"
+echo "length: $length"
+echo "dirDest: $dirDest"
+echo "dirStart: $dirStart"
+echo "i_max: ${array[@]}" 
 
-num_of_files_1=$(ls -1 "*.JPG" | wc -l)
+echo "#################################################################################################################"
 
-cd $dir_start
+mkdir frames # global frames
+mkdir masks  # global masks
+global_i=0
 
-cd $dir_2
+echo "dirStart: $dirStart"
+echo "dirDest: $dirDest"
 
-num_of_files_2=$(ls -1 "*.JPG" | wc -l)
-
-cd $dir_start
-
-cd "$dir_1"
-
-i=0
-
-for filename in $(ls -1) 
+total_num_of_files=0
+for dir in "${array[@]:0:$length}"
 do
-    mv $filename "$i.JPG"
-    i=$(($i+1))    
+    total_num_of_files=$(($(ls -1 $dir/frames | wc -l) + $total_num_of_files ))  
 done
 
-cd "$dir_start"
-
-cd "$dir_2"
-
-for filename in $(ls -1) 
+for dir in "${array[@]:0:$length}"
 do
-    mv $filename "$i.JPG"
-    i=$(($i+1))
+
+    cd $dirStart/$dir/frames
+    num_of_files=$(ls -1 | wc -l)
+
+    # In folder
+    for i in $(seq 1 $num_of_files)
+    do
+        ln -sf $dirStart/$dir/frames/$( echo $(ls -1 | sed -n $i\ p) ) $dirStart/$dirDest/frames/dp_$global_i.png
+        cd ../masks
+        ln -sf $dirStart/$dir/masks/$( echo $(ls -1 | sed -n $i\ p) ) $dirStart/$dirDest/masks/dp_$global_i.png
+        global_i=$(($global_i+1))
+        echo -ne "Progress: $( echo "$global_i/$total_num_of_files * 100" | bc -l )% | Handling image $global_i/$total_num_of_files \r"
+        cd $dirStart/$dir/frames
+    done
+
 done
 
-# Images has been given the correct names
-# fuse folders
-
-cd $dir_start
-
-mkdir img
-
-cd "$dir_1"
-
-pwd
-
-mv *.JPG "$dir_start/img"
-
-cd "$dir_start"
-
-cd "$dir_2"
-
-mv *.JPG "$dir_start/img"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+global_i=0

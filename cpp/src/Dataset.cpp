@@ -3,7 +3,7 @@
 // Constructors ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 Dataset::Dataset() {}
 
-Dataset::Dataset(cv::Mat &img, std::ifstream &csv_file,std::string name)
+Dataset::Dataset(cv::Mat &img, std::ifstream &csv_file,std::string name, double overlab)
 {
     std::cout << "Processing Dataset node...." << std::endl;
     this->name                  = name;
@@ -11,15 +11,15 @@ Dataset::Dataset(cv::Mat &img, std::ifstream &csv_file,std::string name)
     this->img_tops              = img.clone();
     this->tops                  = csv2Points(csv_file);
 
-    placePoints(img_tops,tops,cv::Scalar(0,0,255)/*cv::viz::Color::red()*/);
+    placePoints(img_tops,tops,cv::Scalar(0,0,255));
 
     cv::Mat mask(img.rows, img.cols, 1, cv::viz::Color::black());
     placePoints(mask,tops,cv::viz::Color::white());
     this->img_mask              = mask.clone();
 
-    this->tiles_blank           = generateBetterTiles(img_blank,0.8);
-    this->tiles_tops            = generateBetterTiles(img_tops,0.8);
-    this->tiles_masks           = generateBetterTiles(img_mask,0.8);
+    this->tiles_blank           = generateBetterTiles(img_blank,overlab);
+    this->tiles_tops            = generateBetterTiles(img_tops,overlab);
+    this->tiles_masks           = generateBetterTiles(img_mask,overlab);
 }
 
 // Destructors ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -202,6 +202,127 @@ void Dataset::cutImage(cv::Mat &img, int pieces, std::string name)
     }
 }
 
+std::pair<cv::Mat,int> Dataset::markExtrema(cv::Mat &img)
+{
+
+    // First we find the highest value in the image.
+    int largestVal = 0;
+    for (size_t y = 0; y < img.rows; y++)
+    {
+        for (size_t x = 0; x < img.cols; x++)
+        {
+            if (largestVal < img.at<uchar>(cv::Point(x,y)))
+                largestVal = img.at<uchar>(cv::Point(x,y));
+        }
+    }
+
+    int THRESHOLD = largestVal * 0.9;
+    cv::Mat img_bin;
+    threshold(img, img_bin, THRESHOLD, 255, cv::THRESH_BINARY );
+
+    std::vector<std::vector<cv::Point>> contours;
+
+    cv::cvtColor(img_bin, img_bin, CV_BGR2GRAY);
+    int erosion_size = 3;
+    cv::Mat element = cv::getStructuringElement(
+        cv::MORPH_CROSS,
+        cv::Size(2 * erosion_size + 1, 2 * erosion_size + 1),
+        cv::Point(erosion_size, erosion_size));
+
+    /// Apply the erosion operation
+    cv::dilate(img_bin, img_bin, element);
+    cv::findContours(img_bin, contours, CV_RETR_LIST, CV_CHAIN_APPROX_NONE);
+    contours.erase(contours.end());
+    cv::cvtColor(img_bin, img_bin, CV_GRAY2RGB);
+    std::cout << contours.size() << std::endl;
+
+    for (auto contour : contours)
+        cv::drawContours(img_bin, std::vector<std::vector<cv::Point>>(1, contour), -1, cv::Scalar(0, 0, 255), 3, 8);
+
+    return std::pair<cv::Mat, int>(img_bin,contours[0].size());
+}
+
+cv::Mat Dataset::stitchingTiles(cv::Mat big_img, std::vector<cv::Mat> tiles)
+{
+
+    int x           = 0;
+    int y           = 0;
+    int tile_width  = tiles[0].cols;
+    int tile_height = tiles[0].rows;
+
+    cv::Mat mosaik(big_img.rows, big_img.cols, big_img.type());
+
+    for (size_t i = 0; i < tiles.size(); i++)
+    {
+        // std::cout << "(x + tile_width): "                           << (x + tile_width)                     << std::endl;
+        // std::cout << "(this->img_blank.cols): "                     << (big_img.cols)                       << std::endl;
+        // std::cout << "(x + tile_width) > (this->img_blank.cols): "  << ((x + tile_width) > (big_img.cols))  << std::endl;
+
+        //cv::imshow("tile",tiles[i]);
+        //cv::imshow("mosaic",mosaik);
+        //cv::waitKey();
+
+        if ((x + tile_width) > (big_img.cols))
+        {
+            // std::cout << "TRUE" << std::endl;
+            // If the end of x and y is reached, terminate.
+            if ( (y + tile_height) > (big_img.rows) )
+            {
+                // std::cout << "I BREAK" << std::endl;
+                break;
+            }
+
+            // Reset to next row.
+            y += tile_height;
+            x = 0;
+            tiles[i].copyTo(mosaik(cv::Rect(x, y, tile_width, tile_height)));
+            i--;
+            // std::cout << "NEW LINE: x = " << x << " y = " << y << std::endl;
+        }
+        else
+        {
+            tiles[i].copyTo(mosaik(cv::Rect(x, y, tile_width, tile_height)));
+            // std::cout << "FALSE" << std::endl;
+            // Increment x.
+            x += tile_width;
+        }
+        // std::cout << "NEW ITERATION: x = " << x << " y = " << y << std::endl;
+
+    }
+
+    return mosaik;
+}
+
+cv::Mat Dataset::predict(cv::Mat tile)
+{
+    // Write given tile.
+    cv::imwrite("img/results/tmp/tmp.png", tile);
+    system(std::string("python3 py/predict.py img/results/tmp/tmp.png").c_str());
+    cv::Mat pred = cv::imread("img/results/pred/pred.png");
+    return pred;
+}
+
+std::vector<cv::Mat> Dataset::predict(std::vector<cv::Mat> tiles)
+{
+    std::vector<cv::Mat> predictions;
+    for (size_t i = 0; i < tiles.size(); i++)
+    {
+        std::cout << "[PROGRESS]: " << double(double(i)/double(tiles.size())*100.0) << "%" << std::endl; 
+        predictions.push_back(predict(tiles[i]));
+    }
+    return predictions;
+}
+
+cv::Mat Dataset::predict()
+{
+    std::vector<cv::Mat> predictions = predict(this->tiles_blank);
+    cv::Mat cut_blank_img = stitchingTiles(this->img_blank,this->tiles_blank);
+    cv::Mat cut_blank_img_pred = stitchingTiles(cut_blank_img, predictions);
+    cv::imwrite("img/results/mosaik.tif",cut_blank_img);
+    cv::imwrite("img/results/mosaik_pred.tif",cut_blank_img_pred);
+    return (stitchingTiles(cut_blank_img,predictions));
+}
+
 // Private
 
 // Generates the image tiles and puts them into an vector.
@@ -210,17 +331,20 @@ std::vector<cv::Mat> Dataset::generateTiles(cv::Mat &img, int tile_size)
 
     std::vector<cv::Mat> tiles;
 
-    int width = img.cols;
-    int height = img.rows;
-    int img_num = 0;
+    int width       = img.cols;
+    int height      = img.rows;
+    int img_num     = 0;
+    cv::Mat tile;
+    int i = 0, j = 0;
 
-    for (int i = 0; (height - i) >= tile_size; i += tile_size)
+    for (i = 0; (height - i) > tile_size; i += tile_size)
     {
-        for (int j = 0; (width - j) >= tile_size; j += tile_size)
+        for (j = 0; (width - j) > tile_size; j += tile_size)
         {
-            cv::Mat tile = img(cv::Rect(j, i, tile_size, tile_size));
+            // std::cout << "[GENERATE TILES]: X Y =" << j << "x" << i << std::endl; 
+            tile = img(cv::Rect(j, i,  tile_size, tile_size));
             tiles.push_back(tile);
-            img_num++;
+            img_num++;            
         }
     }
     return tiles;
