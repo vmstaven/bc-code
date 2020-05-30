@@ -69,6 +69,11 @@ std::vector<cv::Mat> Dataset::getTilesMasks()
     return this->tiles_masks;
 }
 
+std::string Dataset::getName()
+{
+    return this->name;
+}
+
 // Writes the original image to the img folder.
 void Dataset::writeImgBlank()
 {
@@ -202,7 +207,7 @@ void Dataset::cutImage(cv::Mat &img, int pieces, std::string name)
     }
 }
 
-std::pair<cv::Mat,int> Dataset::markExtrema(cv::Mat &img)
+cv::Mat Dataset::markExtrema(cv::Mat &img)
 {
 
     // First we find the highest value in the image.
@@ -211,35 +216,50 @@ std::pair<cv::Mat,int> Dataset::markExtrema(cv::Mat &img)
     {
         for (size_t x = 0; x < img.cols; x++)
         {
-            if (largestVal < img.at<uchar>(cv::Point(x,y)))
-                largestVal = img.at<uchar>(cv::Point(x,y));
+            if (largestVal < img.at<uchar>(cv::Point(x, y)))
+                largestVal = img.at<uchar>(cv::Point(x, y));
         }
     }
 
     int THRESHOLD = largestVal * 0.9;
     cv::Mat img_bin;
-    threshold(img, img_bin, THRESHOLD, 255, cv::THRESH_BINARY );
-
+    threshold(img, img_bin, THRESHOLD, 255, cv::THRESH_BINARY);
     std::vector<std::vector<cv::Point>> contours;
-
-    cv::cvtColor(img_bin, img_bin, CV_BGR2GRAY);
-    int erosion_size = 3;
-    cv::Mat element = cv::getStructuringElement(
-        cv::MORPH_CROSS,
-        cv::Size(2 * erosion_size + 1, 2 * erosion_size + 1),
-        cv::Point(erosion_size, erosion_size));
+    int erosion_size    = 3;
+    cv::Mat element     = cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(2 * erosion_size + 1, 2 * erosion_size + 1), cv::Point(erosion_size, erosion_size));
 
     /// Apply the erosion operation
-    cv::dilate(img_bin, img_bin, element);
-    cv::findContours(img_bin, contours, CV_RETR_LIST, CV_CHAIN_APPROX_NONE);
-    contours.erase(contours.end());
-    cv::cvtColor(img_bin, img_bin, CV_GRAY2RGB);
-    std::cout << contours.size() << std::endl;
 
-    for (auto contour : contours)
-        cv::drawContours(img_bin, std::vector<std::vector<cv::Point>>(1, contour), -1, cv::Scalar(0, 0, 255), 3, 8);
+    std::cout << img_bin.channels() << std::endl;
+    std::cout << img_bin.at<cv::Vec3b>(cv::Point(50,50)) << std::endl;
 
-    return std::pair<cv::Mat, int>(img_bin,contours[0].size());
+    if (!isAllBlackBin( img_bin ))
+    {
+        cv::dilate(img_bin, img_bin, element);
+        cv::findContours(img_bin, contours, CV_RETR_LIST, CV_CHAIN_APPROX_NONE);
+        contours.erase(contours.end());
+
+        for (auto contour : contours)
+        {
+            cv::drawContours(img_bin, std::vector<std::vector<cv::Point>>(1, contour), -1, cv::Scalar(0, 0, 255), 3, 8);
+        }
+    }
+    
+    return img_bin;
+}
+
+cv::Mat Dataset::white_edge(cv::Mat &img)
+{
+    for (size_t i = 0; i < img.cols; i++)
+        img.at<uchar>(cv::Point(i, 0)) = img.at<uchar>(cv::Point(i, 3));
+    for (size_t i = 0; i < img.cols; i++)
+        img.at<uchar>(cv::Point(i, img.rows)) = img.at<uchar>(cv::Point(i, img.rows - 3));
+    for (size_t i = 0; i < img.rows; i++)
+        img.at<uchar>(cv::Point(0, i)) = img.at<uchar>(cv::Point(3, i));
+    for (size_t i = 0; i < img.rows; i++)
+        img.at<uchar>(cv::Point(img.cols, i)) = img.at<uchar>(cv::Point(img.cols - 3, i));
+
+    return img;
 }
 
 cv::Mat Dataset::stitchingTiles(cv::Mat big_img, std::vector<cv::Mat> tiles)
@@ -258,9 +278,10 @@ cv::Mat Dataset::stitchingTiles(cv::Mat big_img, std::vector<cv::Mat> tiles)
         // std::cout << "(this->img_blank.cols): "                     << (big_img.cols)                       << std::endl;
         // std::cout << "(x + tile_width) > (this->img_blank.cols): "  << ((x + tile_width) > (big_img.cols))  << std::endl;
 
-        //cv::imshow("tile",tiles[i]);
-        //cv::imshow("mosaic",mosaik);
-        //cv::waitKey();
+        // cv::imshow("tile",tiles[i]);
+        // cv::waitKey();
+
+
 
         if ((x + tile_width) > (big_img.cols))
         {
@@ -274,8 +295,8 @@ cv::Mat Dataset::stitchingTiles(cv::Mat big_img, std::vector<cv::Mat> tiles)
 
             // Reset to next row.
             y += tile_height;
-            x = 0;
-            tiles[i].copyTo(mosaik(cv::Rect(x, y, tile_width, tile_height)));
+            x = 1;
+            tiles[i].copyTo(mosaik(cv::Rect(x - 1, y, tile_width, tile_height)));
             i--;
             // std::cout << "NEW LINE: x = " << x << " y = " << y << std::endl;
         }
@@ -293,34 +314,40 @@ cv::Mat Dataset::stitchingTiles(cv::Mat big_img, std::vector<cv::Mat> tiles)
     return mosaik;
 }
 
-cv::Mat Dataset::predict(cv::Mat tile)
+int Dataset::predict(std::string BACKBONE)
 {
-    // Write given tile.
-    cv::imwrite("img/results/tmp/tmp.png", tile);
-    system(std::string("python3 py/predict.py img/results/tmp/tmp.png").c_str());
-    cv::Mat pred = cv::imread("img/results/pred/pred.png");
-    return pred;
-}
+    for (size_t i = 0; i < this->tiles_blank.size(); i++)
+        cv::imwrite("img/data" + this->name + "/results/tmp/" + std::to_string(i) + "tmp.png", this->tiles_blank[i]);
+    system(std::string("python3 py/predict.py img/data" + this->name + "/results/tmp/ img/data" + this->name + "/results/pred/ " + BACKBONE + "").c_str());
 
-std::vector<cv::Mat> Dataset::predict(std::vector<cv::Mat> tiles)
-{
-    std::vector<cv::Mat> predictions;
-    for (size_t i = 0; i < tiles.size(); i++)
+    std::vector<cv::Mat> pred_tiles;
+    for (size_t i = 0; i < this->tiles_blank.size(); i++)
+        pred_tiles.push_back(cv::imread("img/data" + this->name + "/results/pred/" + std::to_string(i) + "pred.png"));
+
+    cv::Mat mosaic = stitchingTiles(this->img_blank, pred_tiles);
+    cv::imwrite("img/data" + this->name + "/mosaic_pred_" + BACKBONE + "_g.tif", mosaic); // Write mosaic without count.
+    GaussianBlur(mosaic, mosaic, cv::Size(21, 21), 0);
+    cv::imwrite("img/data" + this->name + "/mosaic_pred_" + BACKBONE + ".tif", mosaic); // Write mosaic without count.
+    mosaic = cv::imread("img/data" + this->name + "/mosaic_pred_" + BACKBONE + ".tif", CV_LOAD_IMAGE_GRAYSCALE);
+    double thresh = 230; // Hyper parameter 
+    double maxValue = 255;
+    threshold(mosaic, mosaic, thresh, maxValue, cv::THRESH_BINARY);
+    std::vector<std::vector<cv::Point>> contours;
+    cv::findContours(mosaic, contours, CV_RETR_LIST, CV_CHAIN_APPROX_NONE);
+    cv::cvtColor(mosaic, mosaic, CV_GRAY2BGR);
+    contours.erase(contours.end());
+    
+    for (size_t i = 0; i < contours.size(); i++)
     {
-        std::cout << "[PROGRESS]: " << double(double(i)/double(tiles.size())*100.0) << "%" << std::endl; 
-        predictions.push_back(predict(tiles[i]));
+        if(!(contours[i].size() > 200))
+            cv::drawContours(mosaic, std::vector<std::vector<cv::Point>>(1, contours[i]), -1, cv::Scalar(0, 0, 255), 3, 8);
+        else
+            contours.erase(contours.begin() + i);
     }
-    return predictions;
-}
-
-cv::Mat Dataset::predict()
-{
-    std::vector<cv::Mat> predictions = predict(this->tiles_blank);
-    cv::Mat cut_blank_img = stitchingTiles(this->img_blank,this->tiles_blank);
-    cv::Mat cut_blank_img_pred = stitchingTiles(cut_blank_img, predictions);
-    cv::imwrite("img/results/mosaik.tif",cut_blank_img);
-    cv::imwrite("img/results/mosaik_pred.tif",cut_blank_img_pred);
-    return (stitchingTiles(cut_blank_img,predictions));
+    std::cout << contours.size() << std::endl;
+    cv::imwrite("img/data" + this->name + "/mosaic_pred_thr_" + BACKBONE + ".tif", mosaic);
+    std::cout << "DONE PREDICTING: Number of trees in dataset" << this->name << " is " << contours.size() << std::endl;
+    return contours.size();
 }
 
 // Private
@@ -444,7 +471,8 @@ void Dataset::placePoints(cv::Mat &img, std::vector<cv::Point> &pts, cv::viz::Co
 {
     for (int i = 0; i < pts.size(); i++)
     {
-        circle(img, pts[i], 2, color, 2, 1); // Orig radius 2 and thickness 2
+        circle(img, pts[i], 4, color, 7, 1); // Orig radius 2 and thickness 2
+        // circle(img, pts[i], 15, color, CV_FILLED, 8, 0);
     }
 }
 
@@ -546,4 +574,19 @@ void Dataset::tileDims()
     }
     std::cout << "Height dimensions: " << double(double(3577) / double(350)) << std::endl;
     // 39 tiles in height of dimensions 350x350
+}
+
+bool Dataset::isAllBlackBin(cv::Mat &img)
+{
+    for (int i = 1; i < img.rows - 1; i++)
+    {
+        for (int j = 1; j < img.cols - 1; j++)
+        {
+            if (img.at<cv::Vec3b>(cv::Point(j, i)).val[0] < 10 && img.at<cv::Vec3b>(cv::Point(j, i)).val[1] < 10 && img.at<cv::Vec3b>(cv::Point(j, i)).val[2] < 10)
+                continue;
+            else
+                return false;
+        }
+    }
+    return true;
 }
